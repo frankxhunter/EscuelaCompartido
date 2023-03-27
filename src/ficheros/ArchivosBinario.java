@@ -9,8 +9,9 @@ public class ArchivosBinario {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub\
 		Estudiante estu= new Estudiante("Frank", 21);
-		byte[] array= Convert.toBytes(estu);
+		
 		try {
+			byte[] array= Convert.toBytes(estu);
 			RandomAccessFile fichero= new RandomAccessFile("primerFicherBinario.txt", "rw");
 			long cantbytes= fichero.readLong();
 			byte[]arrayBytesestudiante= new byte[(int) cantbytes];
