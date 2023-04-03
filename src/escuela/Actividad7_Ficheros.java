@@ -1,5 +1,7 @@
 package escuela;
 
+
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -8,17 +10,16 @@ import java.util.LinkedList;
 
 import ficheros.Convert;
 
+
 public class Actividad7_Ficheros {
 	public static void main(String[] args) {
-		Empresa empresa=new Empresa("Guugle", 0, 0, "DatosTrabajadores.txt");
+		Empresa empresa=new Empresa("Guugle", "DatosTrabajadores.txt");
 		for(int i=0; i<10; i++) {
-			empresa.addTrabajador(new Trabajador("f"+i, "name "+i, i, i *100), i);
+			empresa.addTrabajador (new Trabajador("f"+i, "name "+i, i, i * 100),0);
 		}
-		//		for(Trabajador x: empresa.obtenerTrabajadores(6))
-		//			System.out.println(x.getName());
-
-		empresa.addTrabajador2(new Trabajador("4242","Frank" , 2, 1444), 3);
+		empresa.addTrabajador(new Trabajador("4242","Frank" , 2, 1000), 10);
 		empresa.Imprimir();
+		empresa.getFileTrab().delete();
 	}
 }
 
@@ -63,14 +64,10 @@ class Trabajador implements Serializable{
 
 class Empresa{
 	private String name;
-	private int cantTrab;
-	private float sumSalarios;
 	private File fileTrab;
-	public Empresa(String name, int cantTrab, float sumSalarios, String nameFile) {
+	public Empresa(String name, String nameFile) {
 		super();
 		this.name = name;
-		this.cantTrab = cantTrab;
-		this.sumSalarios = sumSalarios;
 		this.fileTrab= new File(nameFile);
 		createNewFile();
 	}
@@ -115,14 +112,16 @@ class Empresa{
 			byte []byteName= Convert.toBytes(name);
 			file.writeInt(byteName.length);
 			file.write(byteName);
-			file.writeInt(cantTrab);
-			file.writeFloat(sumSalarios);
+			file.writeInt(0);
+			file.writeFloat(0);
 			file.close();
 
 		}catch(IOException e) {
 
 		}
 	}
+	
+	//Inciso c: Tarea Extraclase
 	public LinkedList<Trabajador> obtenerTrabajadores(int departamento){
 		LinkedList<Trabajador> salida= new LinkedList<Trabajador>();
 
@@ -132,7 +131,7 @@ class Empresa{
 			file.skipBytes(tamName);
 			int cantTrabajadores=file.readInt();
 			file.readInt();
-			for(int i=0; i<cantTrabajadores-1; i++) {
+			for(int i=0; i<cantTrabajadores; i++) {
 				int bytes=file.readInt();
 				byte[]trabadorByte=new byte[bytes];
 				file.read(trabadorByte);
@@ -149,9 +148,7 @@ class Empresa{
 	}
 
 
-	public void addTrabajador(Trabajador worker, int pos) {
-		cantTrab++;
-		sumSalarios+=worker.getSalario();
+	public void addTrabajador(Trabajador worker) {
 
 		try {
 			RandomAccessFile file=new RandomAccessFile(fileTrab, "rw");
@@ -160,80 +157,92 @@ class Empresa{
 
 			long posAux=file.getFilePointer();
 			int cantTrabajadores=file.readInt();
-			file.seek(posAux);
-			file.writeInt(cantTrabajadores+1);
-
-			posAux=file.getFilePointer();
 			float salarioTotal=file.readFloat();
-			file.seek(posAux);
-			file.writeFloat(salarioTotal+worker.getSalario());
 
+			boolean encontrado=false;
 			int i=0;
-			while(i !=pos || i<cantTrabajadores) {
-				int tamWorker=file.readInt();
-				file.skipBytes(tamWorker);
+			while(i<cantTrabajadores && !encontrado) {
+				byte[]arrayTrabajador=new byte[file.readInt()];
+				file.read(arrayTrabajador);
+				Trabajador x = (Trabajador)Convert.toObject(arrayTrabajador);
+
+				if(x.getNumId().equals(worker.getNumId()))
+					encontrado=true;
 				i++;
 			}
-			posAux=file.getFilePointer();
-
-			int cantbyteExcedentes=(int) (file.length()-posAux);
-			file.seek(posAux);
-			byte[] datosExcedentes= new byte[cantbyteExcedentes];
-			file.read(datosExcedentes);
-
-			file.seek(posAux);
-			byte[] workerByte=Convert.toBytes(worker);
-			file.writeInt(workerByte.length);
-			file.write(workerByte);
-
-			file.write(datosExcedentes);
-
+			if(!encontrado) {
+				byte[] workerByte=Convert.toBytes(worker);
+				file.writeInt(workerByte.length);
+				file.write(workerByte); 
+				
+				file.seek(posAux);
+				file.writeInt(cantTrabajadores+1);
+				file.writeFloat(salarioTotal+worker.getSalario());
+			}
 			file.close();
 
-		} catch (IOException e) {
+		} catch (Exception e) {
 			//Tratamiento de la exception
 		}
 	}
-	public void addTrabajador2(Trabajador worker, int pos) {
-		cantTrab++;
-		sumSalarios+=worker.getSalario();
-
+	//Inciso d: Tarea Extraclase
+	public void addTrabajador(Trabajador worker, int pos) {
 		try {
 			RandomAccessFile file=new RandomAccessFile(fileTrab, "rw");
-			RandomAccessFile fileAux=new RandomAccessFile("Aux", "rw");
-			int tam=file.readInt();
-			fileAux.writeInt(tam);
-			byte[] arrayByte=new byte[tam];
-			file.read(arrayByte);
-			fileAux.write(arrayByte);
-			fileAux.writeInt(file.readInt()+1);
-			fileAux.writeFloat(file.readFloat()+1);
+			int tamName=file.readInt();
+			file.skipBytes(tamName);
+
+			long posAux=file.getFilePointer();
+			int cantTrabajadores=file.readInt();
+
+			float salarioTotal=file.readFloat();
+
+			boolean encontrado=false;
 			int i=0;
-			while(i<cantTrab) {
-				if(i==pos) {
-					arrayByte=Convert.toBytes(worker);
-					fileAux.writeInt(arrayByte.length);
-					fileAux.write(arrayByte);
+			long posInsertar=0;
+
+			while((i<cantTrabajadores)&& !encontrado) {
+				if(i==pos)
+					posInsertar=file.getFilePointer();
+
+				byte[]arrayTrabajador=new byte[file.readInt()];
+				file.read(arrayTrabajador);
+				Trabajador x = (Trabajador)Convert.toObject(arrayTrabajador);
+
+				if(x.getNumId().equals(worker.getNumId()))
+					encontrado=true;
+
+				i++;
+			}
+			if(!encontrado){
+				byte arrayTrabajadorAgregar[] = Convert.toBytes(worker);
+
+				if(cantTrabajadores <= pos) {
+					file.writeInt(arrayTrabajadorAgregar.length);
+					file.write(arrayTrabajadorAgregar);
+				}else {
+					long posFinal = file.getFilePointer();
+					long longitudDatoExcedentes = posFinal - posInsertar;
+					byte DatosExcendentes[] = new byte[(int) longitudDatoExcedentes];
+
+					file.seek(posInsertar);
+					file.read(DatosExcendentes);
+					file.seek(posInsertar);
+
+					file.writeInt(arrayTrabajadorAgregar.length);
+					file.write(arrayTrabajadorAgregar);
+					file.write(DatosExcendentes);
 				}
-				else {
-					tam = file.readInt();
-					arrayByte= new byte[tam];
-					file.read(arrayByte);
-					file.writeInt(tam);
-					file.write(arrayByte);
-					i++;
-				}
+				file.seek(posAux);
+				file.writeInt(cantTrabajadores+1);
+				file.writeFloat(salarioTotal+worker.getSalario());
 			}
 			file.close();
-			fileAux.close();
 
-
-		}catch(Exception e) {
-			//Tratamiento de exception
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
-
-
 }
 
 //Fin
